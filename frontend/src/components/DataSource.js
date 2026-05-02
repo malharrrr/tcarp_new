@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { FormControl, InputLabel, Select, MenuItem, TextField, Button } from '@mui/material';
 
 export default function DataSource({ onFetch }) {
   const [source, setSource] = useState('alpha_vantage');
@@ -7,34 +6,72 @@ export default function DataSource({ onFetch }) {
   const [startDate, setStartDate] = useState('2023-01-01');
   const [endDate, setEndDate] = useState('2024-01-01');
 
-  const sources = [
-    { value: 'alpha_vantage', label: 'Alpha Vantage' },
-    { value: 'twelvedata', label: 'Twelve Data' },
-    { value: 'yfinance', label: 'Yahoo Finance' }
-  ];
-
   const handleFetch = () => {
-    onFetch({ source, symbol, startDate, endDate });
+    onFetch({ source, symbol, start_date: startDate, end_date: endDate });
   };
 
   return (
-    <div className="data-source">
-      <FormControl fullWidth>
-        <InputLabel>Data Source</InputLabel>
-        <Select value={source} onChange={(e) => setSource(e.target.value)}>
-          {sources.map((s) => (
-            <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+    <div className="dashboard-panel" style={{ display: 'flex', gap: '20px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+      <div className="input-group">
+        <label> DATA_SOURCE</label>
+        <select value={source} onChange={(e) => setSource(e.target.value)}>
+          <option value="alpha_vantage">ALPHA_VANTAGE</option>
+          <option value="yfinance">YAHOO_FINANCE</option>
+        </select>
+      </div>
 
-      <TextField label="Symbol" value={symbol} onChange={(e) => setSymbol(e.target.value)} />
-      <TextField type="date" label="Start Date" value={startDate} 
-        InputLabelProps={{ shrink: true }} onChange={(e) => setStartDate(e.target.value)} />
-      <TextField type="date" label="End Date" value={endDate}
-        InputLabelProps={{ shrink: true }} onChange={(e) => setEndDate(e.target.value)} />
+      <div className="input-group">
+        <label> TICKER_SYMBOL</label>
+        <input 
+          type="text" 
+          value={symbol} 
+          onChange={(e) => setSymbol(e.target.value.toUpperCase())} 
+          placeholder="e.g. AAPL"
+        />
+      </div>
+
+      <div className="input-group">
+        <label> START_DATE</label>
+        <input 
+          type="date" 
+          value={startDate} 
+          onChange={(e) => setStartDate(e.target.value)} 
+        />
+      </div>
+
+      <div className="input-group">
+        <label> END_DATE</label>
+        <input 
+          type="date" 
+          value={endDate} 
+          onChange={(e) => setEndDate(e.target.value)} 
+        />
+      </div>
       
-      <Button variant="contained" onClick={handleFetch}>Fetch Market Data</Button>
+      <button onClick={handleFetch}>[ EXECUTE_FETCH ]</button>
+
+      <style jsx>{`
+        .input-group {
+          display: flex;
+          flex-direction: column;
+        }
+        .input-group label {
+          font-size: 0.8rem;
+          color: #008f11;
+          margin-bottom: 5px;
+        }
+        select, input {
+          background-color: #0a0a0a;
+          color: #00ff41;
+          border: 1px solid #003b00;
+          padding: 8px;
+          font-family: 'Courier New', Courier, monospace;
+          outline: none;
+        }
+        select:focus, input:focus {
+          border-color: #00ff41;
+        }
+      `}</style>
     </div>
   );
 }

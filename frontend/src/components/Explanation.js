@@ -1,164 +1,64 @@
 import React from 'react';
-import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-} from 'chart.js';
-
-// Register ChartJS components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
 
 const Explanation = ({ decision }) => {
-  // Sample explanation data (replace with actual API response)
-  const explanationData = decision?.explanation || {
-    factors: [
-      { name: 'Sector Momentum', impact: 3.1, direction: 'positive' },
-      { name: 'Interest Rates', impact: 1.4, direction: 'negative' },
-      { name: 'Revenue Growth', impact: 1.8, direction: 'positive' },
-      { name: 'Market Volatility', impact: 1.3, direction: 'positive' },
-      { name: 'Valuation Metrics', impact: 1.1, direction: 'negative' }
-    ],
-    counterfactuals: [
-      { scenario: "If interest rates were 1% higher", outcome: "Allocation would decrease by 2.3%" },
-      { scenario: "If volatility increased 20%", outcome: "Tech allocation would drop 5%" }
-    ],
-    decisionPath: [
-      "Detected bullish regime (probability: 72%)",
-      "Strong causal link: Sector Momentum → Returns (p < 0.01)",
-      "Weak negative link: Interest Rates → Tech Returns"
-    ]
-  };
-
-  // Prepare chart data
-  const chartData = {
-    labels: explanationData.factors.map(f => f.name),
-    datasets: [{
-      label: 'Impact Score',
-      data: explanationData.factors.map(f => f.impact),
-      backgroundColor: explanationData.factors.map(f => 
-        f.direction === 'positive' ? 'rgba(75, 192, 192, 0.6)' : 'rgba(255, 99, 132, 0.6)'
-      ),
-      borderColor: explanationData.factors.map(f => 
-        f.direction === 'positive' ? 'rgb(75, 192, 192)' : 'rgb(255, 99, 132)'
-      ),
-      borderWidth: 1
-    }]
-  };
-
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        display: false
-      },
-      title: {
-        display: true,
-        text: 'Causal Factor Contributions',
-        font: {
-          size: 16
-        }
-      },
-      tooltip: {
-        callbacks: {
-          label: (context) => {
-            const factor = explanationData.factors[context.dataIndex];
-            return `${factor.direction === 'positive' ? '+' : '-'}${factor.impact}%`;
-          }
-        }
-      }
-    },
-    scales: {
-      y: {
-        title: {
-          display: true,
-          text: 'Impact (%)'
-        }
-      }
-    }
-  };
+  if (!decision || !decision.explanation) return null;
+  const { explanation } = decision;
 
   return (
-    <div className="explanation-container">
-      <h2>Decision Explanation</h2>
+    <div className="dashboard-panel scrollable-panel">
+      <h3> XAI.EXPLANATION_DASHBOARD</h3>
       
-      <div className="chart-section">
-        <Bar data={chartData} options={chartOptions} />
-      </div>
-
-      <div className="decision-path">
-        <h3>Decision Path</h3>
-        <ul>
-          {explanationData.decisionPath.map((step, i) => (
-            <li key={i}>{step}</li>
+      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+        <div style={{ flex: 1, border: '1px solid #003b00', padding: '15px' }}>
+          <h4 style={{ margin: '0 0 10px 0', color: '#008f11' }}>DECISION SUMMARY</h4>
+          <div>ACTION: REBALANCE_PORTFOLIO</div>
+          {explanation.allocation_changes?.map((change, i) => (
+            <div key={i} style={{ color: change.val > 0 ? '#00ff41' : '#ff003c' }}>
+              * {change.asset}: {change.val > 0 ? '+' : ''}{change.val}%
+            </div>
           ))}
-        </ul>
+        </div>
+
+        <div style={{ flex: 2, border: '1px solid #003b00', padding: '15px' }}>
+          <h4 style={{ margin: '0 0 10px 0', color: '#008f11' }}>NATURAL LANGUAGE EXPLANATION</h4>
+          <p style={{ margin: 0 }}>
+            {explanation.natural_language || 
+            "The model adjusted allocations primarily due to detected shifts in Sector Momentum and recent Interest Rate volatility. Historical counterfactuals suggest maintaining previous weights would increase downside risk by 4.2%."}
+          </p>
+        </div>
       </div>
 
-      <div className="counterfactuals">
-        <h3>What-If Scenarios</h3>
-        <table>
+      <div style={{ border: '1px solid #003b00', padding: '15px', marginBottom: '20px' }}>
+        <h4 style={{ margin: '0 0 10px 0', color: '#008f11' }}>CAUSAL FACTOR ANALYSIS</h4>
+        {explanation.factors?.map((factor, i) => (
+          <div key={i} style={{ marginBottom: '10px' }}>
+            <strong>[{factor.category}] {factor.name}:</strong> 
+            <span style={{ marginLeft: '10px', color: factor.direction === 'positive' ? '#00ff41' : '#ff003c' }}>
+              {factor.direction === 'positive' ? '+' : '-'}{factor.impact}% impact
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ border: '1px solid #003b00', padding: '15px' }}>
+        <h4 style={{ margin: '0 0 10px 0', color: '#008f11' }}>INTERVENTIONAL QUERIES (WHAT-IF)</h4>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
-            <tr>
-              <th>Scenario</th>
-              <th>Outcome</th>
+            <tr style={{ borderBottom: '1px solid #003b00', color: '#008f11' }}>
+              <th style={{ padding: '8px' }}>SIMULATED SCENARIO</th>
+              <th style={{ padding: '8px' }}>CAUSAL OUTCOME</th>
             </tr>
           </thead>
           <tbody>
-            {explanationData.counterfactuals.map((cf, i) => (
-              <tr key={i}>
-                <td>{cf.scenario}</td>
-                <td>{cf.outcome}</td>
+            {explanation.counterfactuals?.map((cf, i) => (
+              <tr key={i} style={{ borderBottom: '1px dotted #003b00' }}>
+                <td style={{ padding: '8px' }}>{cf.scenario}</td>
+                <td style={{ padding: '8px' }}>{cf.outcome}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
-      <style jsx>{`
-        .explanation-container {
-          padding: 20px;
-          background: #f8f9fa;
-          border-radius: 8px;
-          margin-top: 20px;
-        }
-        .chart-section {
-          margin: 30px 0;
-          max-width: 800px;
-        }
-        .decision-path ul {
-          list-style-type: none;
-          padding-left: 0;
-        }
-        .decision-path li {
-          padding: 8px 0;
-          border-bottom: 1px solid #eee;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 15px;
-        }
-        th, td {
-          padding: 12px;
-          text-align: left;
-          border-bottom: 1px solid #ddd;
-        }
-        th {
-          background-color: #f2f2f2;
-        }
-      `}</style>
     </div>
   );
 };

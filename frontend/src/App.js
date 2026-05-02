@@ -6,7 +6,6 @@ import Explanation from './components/Explanation';
 import './App.css';
 
 function App() {
-  // State management
   const [marketData, setMarketData] = useState(null);
   const [allocation, setAllocation] = useState(null);
   const [causalGraph, setCausalGraph] = useState(null);
@@ -14,7 +13,6 @@ function App() {
   const [isTraining, setIsTraining] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fetch market data
   const handleFetch = async (params) => {
     try {
       setError(null);
@@ -24,12 +22,14 @@ function App() {
         body: JSON.stringify(params)
       });
       
-      if (!response.ok) throw new Error('Data fetch failed');
+      if (!response.ok) throw new Error('ERR_DATA_FETCH_FAILED');
       
       const result = await response.json();
       if (result.rows > 0) {
         const graphRes = await fetch(`${process.env.REACT_APP_API_URL}/causal-graph`);
-        setCausalGraph(await graphRes.json());
+        if (graphRes.ok) {
+           setCausalGraph(await graphRes.json());
+        }
         setMarketData(params);
       }
     } catch (err) {
@@ -37,7 +37,6 @@ function App() {
     }
   };
 
-  // Train TCARP model
   const handleTrain = async () => {
     try {
       setIsTraining(true);
@@ -45,15 +44,15 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          risk_tolerance: 0.7,  // Default config - can be made configurable
-          transaction_cost: 0.001
+          risk_tolerance: 0.7,
+          transaction_cost: 0.001,
+          window_size: 252
         })
       });
       
-      if (!response.ok) throw new Error('Training failed');
+      if (!response.ok) throw new Error('ERR_MODEL_TRAINING_FAILED');
       
-      const result = await response.json();
-      console.log('Training result:', result);
+      console.log('> MODEL_TRAINING_COMPLETE');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -61,29 +60,29 @@ function App() {
     }
   };
 
-  // Get portfolio allocation
   const handlePredict = async () => {
     try {
       const response = await fetch(`${process.env.REACT_APP_API_URL}/predict`);
-      if (!response.ok) throw new Error('Prediction failed');
+      if (!response.ok) throw new Error('ERR_PREDICTION_FAILED');
       
       const result = await response.json();
       setAllocation(result.allocation);
       
-      // Fetch explanation (separate endpoint example)
       const explainRes = await fetch(`${process.env.REACT_APP_API_URL}/explain`);
-      setExplanation(await explainRes.json());
+      if (explainRes.ok) {
+         setExplanation(await explainRes.json());
+      }
       
     } catch (err) {
       setError(err.message);
     }
   };
 
-  // Auto-refresh data every 5 minutes
   useEffect(() => {
     if (!marketData) return;
     
     const interval = setInterval(() => {
+      console.log('> INITIATING_SCHEDULED_DATA_REFRESH');
       handleFetch(marketData);
     }, 300000);
     
@@ -92,163 +91,63 @@ function App() {
 
   return (
     <div className="app-container">
-      <header className="app-header">
-        <h1>TCARP Algorithmic Trading Platform</h1>
-        <p className="subtitle">Temporal-Causal Adaptive Reinforcement Portfolio</p>
+      <header style={{ textAlign: 'center', marginBottom: '40px' }}>
+        <h1 style={{ border: 'none', margin: '0' }}>TCARP // CORE_TERMINAL</h1>
+        <p style={{ color: '#008f11', marginTop: '5px' }}>Temporal-Causal Adaptive Reinforcement Portfolio // v1.0.0</p>
       </header>
 
       {error && (
-        <div className="error-banner">
-          {error}
-          <button onClick={() => setError(null)}>Dismiss</button>
+        <div className="dashboard-panel" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>
+          <strong> FATAL_ERROR:</strong> {error}
+          <button 
+            style={{ float: 'right', borderColor: 'var(--danger)', color: 'var(--danger)' }} 
+            onClick={() => setError(null)}
+          >
+            [ ACKNOWLEDGE ]
+          </button>
         </div>
       )}
 
       <main>
-        <section className="data-section">
+        {/* DATA INGESTION ROW */}
+        <section style={{ marginBottom: '20px' }}>
           <DataSource onFetch={handleFetch} />
           {marketData && (
-            <div className="data-meta">
-              <span>Loaded: {marketData.symbol}</span>
-              <span>From: {marketData.start_date}</span>
-              <span>To: {marketData.end_date}</span>
+            <div style={{ display: 'flex', gap: '20px', marginTop: '10px', fontSize: '0.9rem', color: '#008f11' }}>
+              <span> ACTIVE_TICKER: {marketData.symbol}</span>
+              <span> HORIZON: {marketData.start_date} TO {marketData.end_date}</span>
             </div>
           )}
         </section>
 
-        <section className="controls-section">
+        <section className="dashboard-panel" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+          <span style={{ color: '#008f11' }}> EXECUTION_ENVIRONMENT:</span>
           <button 
             onClick={handleTrain}
             disabled={!marketData || isTraining}
-            className={isTraining ? 'loading' : ''}
           >
-            {isTraining ? 'Training...' : 'Train Model'}
+            {isTraining ? '[ TRAINING_IN_PROGRESS... ]' : '[ INITIALIZE_TRAINING_SEQUENCE ]'}
           </button>
           
           <button 
             onClick={handlePredict}
             disabled={!marketData}
           >
-            Get Allocation
+            [ GENERATE_ALLOCATION ]
           </button>
         </section>
 
-        {causalGraph && (
-          <section className="graph-section">
-            <h2>Market Causal Structure</h2>
-            <CausalGraph graphData={causalGraph} />
-          </section>
-        )}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+             {causalGraph && <CausalGraph graphData={causalGraph} />}
+             {allocation && <Dashboard allocation={allocation} />}
+          </div>
 
-        {allocation && (
-          <section className="results-section">
-            <div className="dashboard-container">
-              <h2>Portfolio Allocation</h2>
-              <Dashboard allocation={allocation} />
-            </div>
-            
-            <div className="explanation-container">
-              <Explanation decision={explanation || allocation} />
-            </div>
-          </section>
-        )}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+             {explanation && <Explanation decision={{ explanation }} />}
+          </div>
+        </div>
       </main>
-
-      <style jsx>{`
-        .app-container {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 20px;
-        }
-        .app-header {
-          text-align: center;
-          margin-bottom: 30px;
-        }
-        .subtitle {
-          color: #666;
-          font-size: 1.1rem;
-        }
-        .data-section {
-          background: #f5f7fa;
-          padding: 20px;
-          border-radius: 8px;
-          margin-bottom: 20px;
-        }
-        .data-meta {
-          display: flex;
-          gap: 15px;
-          margin-top: 10px;
-          font-size: 0.9rem;
-          color: #555;
-        }
-        .controls-section {
-          display: flex;
-          gap: 15px;
-          margin: 25px 0;
-        }
-        button {
-          padding: 10px 20px;
-          background: #4a6fa5;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 1rem;
-        }
-        button:hover {
-          background: #3a5a8f;
-        }
-        button:disabled {
-          background: #cccccc;
-          cursor: not-allowed;
-        }
-        button.loading {
-          position: relative;
-          color: transparent;
-        }
-        button.loading::after {
-          content: "";
-          position: absolute;
-          width: 16px;
-          height: 16px;
-          top: 50%;
-          left: 50%;
-          margin: -8px 0 0 -8px;
-          border: 3px solid #fff;
-          border-radius: 50%;
-          border-top-color: transparent;
-          animation: spin 1s linear infinite;
-        }
-        .error-banner {
-          background: #ffebee;
-          color: #c62828;
-          padding: 15px;
-          border-radius: 4px;
-          margin-bottom: 20px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .error-banner button {
-          background: #c62828;
-          padding: 5px 10px;
-          font-size: 0.8rem;
-        }
-        .results-section {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 30px;
-          margin-top: 30px;
-        }
-        @media (max-width: 768px) {
-          .results-section {
-            grid-template-columns: 1fr;
-          }
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }
