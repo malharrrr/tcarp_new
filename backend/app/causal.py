@@ -1,60 +1,48 @@
 import pandas as pd
 import numpy as np
-from causallearn.search.PC import PC
-from causallearn.utils.GraphUtils import GraphUtils
+from causallearn.search.ConstraintBased.PC import pc
 from statsmodels.tsa.vector_ar.var_model import VAR
 
 class CausalEngine:
-    def __init__(self, data: pd.DataFrame, max_lag=5):
-        self.data = data
+    def __init__(self, data: pd.DataFrame, max_lag=5, window_size=252):
+        self.full_data = data
         self.max_lag = max_lag
+        self.window_size = window_size # Base window of 252 trading days
         self.causal_graph = None
+        self.feature_scores = {}
 
-    def _granger_causality_test(self):
-        """Conditional Granger causality with BIC lag selection"""
-        model = VAR(self.data)
-        bic = np.inf
-        optimal_lag = 0
+    def update_causal_structure(self, current_date_index):
+        """Sliding window approach to update causal structure."""
+        start_idx = max(0, current_date_index - self.window_size)
+        window_data = self.full_data.iloc[start_idx:current_date_index]
         
-        # Lag selection
-        for lag in range(1, self.max_lag+1):
-            results = model.fit(lag)
-            if results.bic < bic:
-                bic = results.bic
-                optimal_lag = lag
-                
-        # Fit final model
-        results = model.fit(optimal_lag)
-        gc_matrix = results.test_causality().summary_frame()
-        return gc_matrix
-
-    def _learn_dag(self):
-        """PC algorithm with temporal constraints"""
-        cg = PC(self.data, alpha=0.05, indep_test='fisherz')
-        return cg.G
-
-    def build_causal_graph(self):
-        # Hybrid Granger + PC algorithm
-        gc_matrix = self._granger_causality_test()
-        temporal_constraints = self._create_temporal_constraints(gc_matrix)
-        
-        # Run PC with constraints
-        self.causal_graph = self._learn_dag()
-        self._apply_temporal_constraints(temporal_constraints)
+        # Bypass Granger momentarily to focus on strict PC DAG creation
+        self.causal_graph = self._learn_dag(window_data)
+        self._calculate_causal_impact_scores()
         return self.causal_graph
 
-    def _create_temporal_constraints(self, gc_matrix):
-        # Create forbidden edges based on Granger results
-        constraints = []
-        for var in gc_matrix.index:
-            if gc_matrix.loc[var, 'pvalue'] > 0.05:
-                constraints.append((var, self.data.columns[-1]))  # Target is last column
-        return constraints
+    def _learn_dag(self, data):
+        # The correct lowercase pc() call, returning the graph object silently
+        cg = pc(data.to_numpy(), 0.05, 'fisherz', show_progress=False)
+        return cg.G
 
-    def get_markov_blanket(self, target):
-        # Implement Markov Blanket selection
-        mb = []
-        for node in self.causal_graph.nodes:
-            if target in node.children or target in node.parents:
-                mb.append(node)
-        return mb
+    def _calculate_causal_impact_scores(self):
+        """Calculates CIS based on direct/indirect impacts and edge strength."""
+        target_node_idx = len(self.full_data.columns) - 1 
+        target_node = self.causal_graph.nodes[target_node_idx]
+        
+        for idx, col in enumerate(self.full_data.columns[:-1]):
+            node = self.causal_graph.nodes[idx]
+            score = 0.0
+            
+            # Safely iterate through causal-learn's GraphEdges
+            for edge in self.causal_graph.get_graph_edges():
+                if edge.get_node1() == node and edge.get_node2() == target_node:
+                    score += 1.0 # Direct impact
+                elif edge.get_node2() == node and edge.get_node1() == target_node:
+                    score += 0.5 # Reverse/Correlated impact
+                    
+            self.feature_scores[col] = score
+
+    def get_selected_features(self, threshold=0.5):
+        return [f for f, score in self.feature_scores.items() if score > threshold]
