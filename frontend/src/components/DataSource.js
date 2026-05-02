@@ -21,12 +21,12 @@ export default function DataSource({ onFetch }) {
       </div>
 
       <div className="input-group">
-        <label> TICKER_SYMBOL</label>
+        <label> TICKER_SYMBOLS (COMMA SEPERATED)</label>
         <input 
           type="text" 
           value={symbol} 
           onChange={(e) => setSymbol(e.target.value.toUpperCase())} 
-          placeholder="e.g. AAPL"
+          placeholder="e.g. AAPL, NVDA, MSFT"
         />
       </div>
 

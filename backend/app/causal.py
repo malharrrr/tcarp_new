@@ -27,20 +27,14 @@ class CausalEngine:
         return cg.G
 
     def _calculate_causal_impact_scores(self):
-        """Calculates CIS based on direct/indirect impacts and edge strength."""
-        target_node_idx = len(self.full_data.columns) - 1 
-        target_node = self.causal_graph.nodes[target_node_idx]
-        
-        for idx, col in enumerate(self.full_data.columns[:-1]):
+        """Scores assets based on their out-degree (how many other assets they drive)."""
+        for idx, col in enumerate(self.full_data.columns):
             node = self.causal_graph.nodes[idx]
-            score = 0.0
+            score = 0.1 
             
-            # Safely iterate through causal-learn's GraphEdges
             for edge in self.causal_graph.get_graph_edges():
-                if edge.get_node1() == node and edge.get_node2() == target_node:
-                    score += 1.0 # Direct impact
-                elif edge.get_node2() == node and edge.get_node1() == target_node:
-                    score += 0.5 # Reverse/Correlated impact
+                if edge.get_node1() == node:
+                    score += 1.0 
                     
             self.feature_scores[col] = score
 

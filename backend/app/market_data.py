@@ -14,10 +14,29 @@ class MarketDataFetcher:
         }
         self.api_keys = {'alpha_vantage': os.getenv('ALPHA_VANTAGE_KEY')}
 
-    def fetch_data(self, source, symbol, interval='1day', start_date=None, end_date=None):
-        raw_data = self.sources[source](symbol, interval, start_date, end_date)
+    def fetch_data(self, source, symbol_string, interval='1d', start_date=None, end_date=None):
+        symbols = [s.strip() for s in symbol_string.split(',')]
+        combined_df = pd.DataFrame()
         preprocessor = TCARPPreprocessor()
-        return preprocessor.process_workflow(raw_data)
+
+        for sym in symbols:
+            try:
+                raw_data = self.sources[source](sym, interval, start_date, end_date)
+                clean_data = preprocessor.process_workflow(raw_data)
+                
+                sym_returns = clean_data[['Close']].rename(columns={'Close': sym})
+                
+                if combined_df.empty:
+                    combined_df = sym_returns
+                else:
+                    combined_df = combined_df.join(sym_returns, how='inner')
+            except Exception as e:
+                print(f"SYSTEM_WARNING: Failed to fetch data for {sym}: {e}")
+                
+        if combined_df.empty:
+            raise Exception("FATAL: Could not fetch data for any of the provided symbols.")
+            
+        return combined_df.dropna()
 
     def _fetch_alpha_vantage(self, symbol, interval, start_date, end_date):
         url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={self.api_keys['alpha_vantage']}&datatype=csv"
@@ -97,6 +116,7 @@ class TCARPPreprocessor:
         # Winsorize detected outliers (clip to 5th/95th percentiles)
         clean_df = df.copy()
         for col in numeric_df.columns:
+            clean_df[col] = clean_df[col].astype(float)
             lower = clean_df[col].quantile(0.05)
             upper = clean_df[col].quantile(0.95)
             mask = outliers == -1
