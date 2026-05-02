@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+python-multipart
+pandas
+numpy
+scikit-learn
+torch
+causal-learn
+redis
+psycopg2-binary
+requests
+python-dotenv
+slowapi
+python-dateutil
